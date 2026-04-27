@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Clientes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Administrador de Clientes</h1>
+       
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8 grid grid-cols-2 gap-4">
+            <input type="text" id="nombre" placeholder="Nombre (Letras)" class="border p-2 rounded">
+            <input type="text" id="apellido" placeholder="Apellido (Letras)" class="border p-2 rounded">
+            <input type="text" id="dni" placeholder="DNI" class="border p-2 rounded">
+            <input type="number" id="telefono" placeholder="Teléfono" class="border p-2 rounded">
+            <input type="text" id="cuit" placeholder="CUIT" class="border p-2 rounded">
+            <input type="text" id="domicilio" placeholder="Domicilio" class="border p-2 rounded col-span-2">
+            <button onclick="agregarCliente()" class="bg-blue-600 text-white p-2 rounded col-span-2 hover:bg-blue-700 transition">Guardar Cliente</button>
+        </div>
+
+        <input type="text" id="buscador" oninput="buscarClientes()" placeholder="🔍 Buscar por DNI, Nombre o CUIT..." class="w-full p-3 border rounded-lg mb-6 shadow-sm">
+
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-4">Cliente</th><th class="p-4">DNI</th><th class="p-4">CUIT</th><th class="p-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="listaClientes"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN SUPABASE (Obtené esto en Project Settings > API)
+        const SUPABASE_URL = 'TU_SUPABASE_URL';
+        const SUPABASE_KEY = 'TU_SUPABASE_ANON_KEY';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function cargarClientes() {
+            const { data, error } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
+            renderizar(data);
+        }
+
+        async function agregarCliente() {
+            const cliente = {
+                nombre: document.getElementById('nombre').value,
+                apellido: document.getElementById('apellido').value,
+                dni: document.getElementById('dni').value,
+                telefono: parseInt(document.getElementById('telefono').value),
+                cuit: document.getElementById('cuit').value,
+                domicilio: document.getElementById('domicilio').value
+            };
+
+            // Validaciones básicas de tipo
+            if (!/^[a-zA-Z\s]+$/.test(cliente.nombre)) return alert("El nombre solo debe tener letras");
+
+            const { error } = await supabase.from('clientes').insert([cliente]);
+            if (error) alert("Error: " + error.message);
+            else { location.reload(); }
+        }
+
+        async function eliminarCliente(id) {
+            if(confirm("¿Eliminar este cliente?")) {
+                await supabase.from('clientes').delete().eq('id', id);
+                cargarClientes();
+            }
+        }
+
+        async function buscarClientes() {
+            const term = document.getElementById('buscador').value;
+            const { data } = await supabase.from('clientes').select('*')
+                .or(`nombre.ilike.%${term}%,dni.ilike.%${term}%,cuit.ilike.%${term}%`);
+            renderizar(data);
+        }
+
+        function renderizar(clientes) {
+            const lista = document.getElementById('listaClientes');
+            lista.innerHTML = clientes.map(c => `
+                <tr class="border-t">
+                    <td class="p-4"><strong>${c.nombre} ${c.apellido}</strong><br><span class="text-sm text-gray-500">${c.telefono}</span></td>
+                    <td class="p-4">${c.dni}</td>
+                    <td class="p-4">${c.cuit}</td>
+                    <td class="p-4"><button onclick="eliminarCliente(${c.id})" class="text-red-500 hover:underline">Eliminar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        cargarClientes();
+    </script>
+</body>
+</html>
